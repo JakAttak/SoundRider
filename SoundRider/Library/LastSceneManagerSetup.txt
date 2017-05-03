@@ -1,0 +1,4 @@
+sceneSetups:
+- path: Assets/Plugins/_ImmerseumSDK/2_ExampleScenes/SteamVR Test Scene.unity
+  isLoaded: 1
+  isActive: 1
