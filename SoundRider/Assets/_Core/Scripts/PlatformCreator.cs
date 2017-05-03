@@ -86,7 +86,7 @@ public class PlatformCreator : MonoBehaviour {
  		if (coin) {
  			GameObject new_coin = Instantiate(coin_prefab, cube.transform);
  			new_coin.transform.localScale *= 0.5f;
- 			new_coin.transform.position = new_coin.transform.position + new Vector3(0f, 0.5f + new_coin.transform.localScale.z, 0f);
+ 			new_coin.transform.localPosition = new Vector3(0f, 0.5f + new_coin.transform.localScale.z, 0f);
  		}
  	}
 
