@@ -4,7 +4,8 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour {
 
-	private float lane = 5;
+	private float lane;
+	private int max_lane = 3;
 	private float run_speed = 10f;
 
 	private Rigidbody rb;
@@ -21,7 +22,7 @@ public class PlayerController : MonoBehaviour {
 
 	[SerializeField] TextMesh scoreText;
 
-	private Tween slider = new Tween(0.125f, 5, 5);
+	private Tween slider = new Tween(0.125f, 2, 2);
 
 	void Start () {
 		rb = GetComponent<Rigidbody>();
@@ -33,11 +34,11 @@ public class PlayerController : MonoBehaviour {
 			jump = true;
 		}
 
-    	if (Input.GetKeyDown("left")) {
+    	if (Input.GetKeyDown("left") && lane > 0) {
     		slide(-1);
     	}
 
-    	if (Input.GetKeyDown("right")) {
+    	if (Input.GetKeyDown("right") && lane < max_lane) {
     		slide(1);
     	}
     }
@@ -48,12 +49,7 @@ public class PlayerController : MonoBehaviour {
     		lane = slider.getValue();
     	}
 
-    	float new_lane = (lane + dir) % 12;
-    	if (new_lane < 0) {
-    		new_lane = 12;
-    	}
-
-    	slider.start(lane, new_lane);
+    	slider.start(lane, lane + dir);
     }
 
     void FixedUpdate() {
@@ -72,11 +68,11 @@ public class PlayerController : MonoBehaviour {
     	}
 
     	if (transform.position.y <= dead_height) {
-    		scoreText.text = "You lost.\nFinal score: " + score + "\nBest: " + PlayerPrefs.GetInt("highscore");
+    		scoreText.text = "You lost.\nFinal score: " + score + "\nBest: " + PlayerPrefs.GetInt(currentSongName() + "_highscore");
     	}
 
     	lane = slider.getValue();
-		transform.position = new Vector3(-5.5f + lane, transform.position.y, transform.position.z); // lock to our lane
+		transform.position = new Vector3(-1.5f + lane, transform.position.y, transform.position.z); // lock to our lane
 
 		float mult = run_speed;
 		if (Input.GetKey("up")) {
@@ -107,8 +103,14 @@ public class PlayerController : MonoBehaviour {
 		score += 1;
 		scoreText.text = "Score: " + score;
 
-		if (score > PlayerPrefs.GetInt("highscore")) {
-			PlayerPrefs.SetInt("highscore", score);
+		if (score > PlayerPrefs.GetInt(currentSongName() + "_highscore")) {
+			PlayerPrefs.SetInt(currentSongName() + "_highscore", score);
 		}
 	}
+
+	string currentSongName() {
+		return ((AudioSource) GameObject.FindObjectOfType(typeof(AudioSource))).clip.name;
+	}
+
+
 }

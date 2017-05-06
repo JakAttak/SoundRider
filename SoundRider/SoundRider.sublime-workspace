@@ -4,6 +4,14 @@
 		"selected_items":
 		[
 			[
+				"coin_strea",
+				"coin_streak_left"
+			],
+			[
+				"coin_streak",
+				"coin_streak_i"
+			],
+			[
 				"coin",
 				"coin_prefab"
 			],
@@ -28,12 +36,78 @@
 	"buffers":
 	[
 		{
+			"file": "Assets/Scripts/Example.cs",
+			"settings":
+			{
+				"buffer_size": 1499,
+				"encoding": "UTF-8 with BOM",
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "Assets/_Core/Scripts/PlatformCreator.cs",
+			"settings":
+			{
+				"buffer_size": 5319,
+				"encoding": "UTF-8 with BOM",
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "Assets/_Core/Scripts/PlayerController.cs",
+			"settings":
+			{
+				"buffer_size": 2535,
+				"encoding": "UTF-8 with BOM",
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "Assets/_Core/Scripts/Tween.cs",
+			"settings":
+			{
+				"buffer_size": 1114,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "Assets/_Core/Scripts/SkyboxHandler.cs",
+			"settings":
+			{
+				"buffer_size": 653,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			}
+		},
+		{
 			"file": "Assets/Plugins/FarlandSkies/Demo/Scripts/Skybox/SkyboxRotator.cs",
 			"settings":
 			{
 				"buffer_size": 350,
 				"encoding": "UTF-8 with BOM",
 				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "Assets/Scripts/Rotate.cs",
+			"settings":
+			{
+				"buffer_size": 274,
+				"encoding": "UTF-8 with BOM",
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"contents": "/*\n * Copyright (c) 2015 Allan Pichardo\n * \n * Licensed under the Apache License, Version 2.0 (the \"License\");\n * you may not use this file except in compliance with the License.\n * You may obtain a copy of the License at\n * \n *  http://www.apache.org/licenses/LICENSE-2.0\n * \n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\nusing UnityEngine;\nusing System.Collections;\nusing System.Collections.Generic;\n\n[RequireComponent (typeof(AudioSource))]\npublic class AudioProcessor : MonoBehaviour\n{\n\tpublic AudioSource audioSource;\n\n\tprivate long lastT, nowT, diff, entries, sum;\n\n\tpublic int bufferSize = 1024;\n\t// fft size\n\tprivate int samplingRate = 44100;\n\t// fft sampling frequency\n\n\t/* log-frequency averaging controls */\n\tprivate int nBand = 12;\n\t// number of bands\n\n\tpublic float gThresh = 0.1f;\n\t// sensitivity\n\n\tint blipDelayLen = 16;\n\tint[] blipDelay;\n\n\tprivate int sinceLast = 0;\n\t// counter to suppress double-beats\n\n\tprivate float framePeriod;\n\n\t/* storage space */\n\tprivate int colmax = 120;\n\tfloat[] spectrum;\n\tfloat[] averages;\n\tfloat[] acVals;\n\tfloat[] onsets;\n\tfloat[] scorefun;\n\tfloat[] dobeat;\n\tint now = 0;\n\t// time index for circular buffer within above\n\n\tfloat[] spec;\n\t// the spectrum of the previous step\n\n\t/* Autocorrelation structure */\n\tint maxlag = 100;\n\t// (in frames) largest lag to track\n\tfloat decay = 0.997f;\n\t// smoothing constant for running average\n\tAutoco auco;\n\n\tprivate float alph;\n\t// trade-off constant between tempo deviation penalty and onset strength\n\n\t[Header (\"Events\")]\n\tpublic OnBeatEventHandler onBeat;\n\tpublic OnSpectrumEventHandler onSpectrum;\n\n\t//////////////////////////////////\n\tprivate long getCurrentTimeMillis ()\n\t{\n\t\tlong milliseconds = System.DateTime.Now.Ticks / System.TimeSpan.TicksPerMillisecond;\n\t\treturn milliseconds;\n\t}\n\n\tprivate void initArrays ()\n\t{\n\t\tblipDelay = new int[blipDelayLen];\n\t\tonsets = new float[colmax];\n\t\tscorefun = new float[colmax];\n\t\tdobeat = new float[colmax];\n\t\tspectrum = new float[bufferSize];\n\t\taverages = new float[12];\n\t\tacVals = new float[maxlag];\n\t\talph = 100 * gThresh;\n\t}\n\n\t// Use this for initialization\n\tvoid Start ()\n\t{\n\t\tinitArrays ();\n\n\t\taudioSource = GetComponent<AudioSource> ();\n\t\tsamplingRate = audioSource.clip.frequency;\n\n\t\tframePeriod = (float)bufferSize / (float)samplingRate;\n\n\t\t//initialize record of previous spectrum\n\t\tspec = new float[nBand];\n\t\tfor (int i = 0; i < nBand; ++i)\n\t\t\tspec [i] = 100.0f;\n\n\t\tauco = new Autoco (maxlag, decay, framePeriod, getBandWidth ());\n\n\t\tlastT = getCurrentTimeMillis ();\n\t}\n\n\tpublic void tapTempo ()\n\t{\n\t\tnowT = getCurrentTimeMillis ();\n\t\tdiff = nowT - lastT;\n\t\tlastT = nowT;\n\t\tsum = sum + diff;\n\t\tentries++;\n\n\t\tint average = (int)(sum / entries);\n\n\t\tDebug.Log (\"average = \" + average);\n\t}\n\n\tdouble[] toDoubleArray (float[] arr)\n\t{\n\t\tif (arr == null)\n\t\t\treturn null;\n\t\tint n = arr.Length;\n\t\tdouble[] ret = new double[n];\n\t\tfor (int i = 0; i < n; i++) {\n\t\t\tret [i] = (float)arr [i];\n\t\t}\n\t\treturn ret;\n\t}\n\n\t// Update is called once per frame\n\tvoid Update ()\n\t{\n\t\tif (audioSource.isPlaying) {\n\t\t\taudioSource.GetSpectrumData (spectrum, 0, FFTWindow.BlackmanHarris);\n\t\t\tcomputeAverages (spectrum);\n\t\t\tonSpectrum.Invoke (averages);\n\n\t\t\t/* calculate the value of the onset function in this frame */\n\t\t\tfloat onset = 0;\n\t\t\tfor (int i = 0; i < nBand; i++) {\n\t\t\t\tfloat specVal = (float)System.Math.Max (-100.0f, 20.0f * (float)System.Math.Log10 (averages [i]) + 160); // dB value of this band\n\t\t\t\tspecVal *= 0.025f;\n\t\t\t\tfloat dbInc = specVal - spec [i]; // dB increment since last frame\n\t\t\t\tspec [i] = specVal; // record this frome to use next time around\n\t\t\t\tonset += dbInc; // onset function is the sum of dB increments\n\t\t\t}\n\n\t\t\tonsets [now] = onset;\n\n\t\t\t/* update autocorrelator and find peak lag = current tempo */\n\t\t\tauco.newVal (onset);\n\t\t\t// record largest value in (weighted) autocorrelation as it will be the tempo\n\t\t\tfloat aMax = 0.0f;\n\t\t\tint tempopd = 0;\n\t\t\t//float[] acVals = new float[maxlag];\n\t\t\tfor (int i = 0; i < maxlag; ++i) {\n\t\t\t\tfloat acVal = (float)System.Math.Sqrt (auco.autoco (i));\n\t\t\t\tif (acVal > aMax) {\n\t\t\t\t\taMax = acVal;\n\t\t\t\t\ttempopd = i;\n\t\t\t\t}\n\t\t\t\t// store in array backwards, so it displays right-to-left, in line with traces\n\t\t\t\tacVals [maxlag - 1 - i] = acVal;\n\t\t\t}\n\n\t\t\t/* calculate DP-ish function to update the best-score function */\n\t\t\tfloat smax = -999999;\n\t\t\tint smaxix = 0;\n\t\t\t// weight can be varied dynamically with the mouse\n\t\t\talph = 100 * gThresh;\n\t\t\t// consider all possible preceding beat times from 0.5 to 2.0 x current tempo period\n\t\t\tfor (int i = tempopd / 2; i < System.Math.Min (colmax, 2 * tempopd); ++i) {\n\t\t\t\t// objective function - this beat's cost + score to last beat + transition penalty\n\t\t\t\tfloat score = onset + scorefun [(now - i + colmax) % colmax] - alph * (float)System.Math.Pow (System.Math.Log ((float)i / (float)tempopd), 2);\n\t\t\t\t// keep track of the best-scoring predecesor\n\t\t\t\tif (score > smax) {\n\t\t\t\t\tsmax = score;\n\t\t\t\t\tsmaxix = i;\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tscorefun [now] = smax;\n\t\t\t// keep the smallest value in the score fn window as zero, by subtracing the min val\n\t\t\tfloat smin = scorefun [0];\n\t\t\tfor (int i = 0; i < colmax; ++i)\n\t\t\t\tif (scorefun [i] < smin)\n\t\t\t\t\tsmin = scorefun [i];\n\t\t\tfor (int i = 0; i < colmax; ++i)\n\t\t\t\tscorefun [i] -= smin;\n\n\t\t\t/* find the largest value in the score fn window, to decide if we emit a blip */\n\t\t\tsmax = scorefun [0];\n\t\t\tsmaxix = 0;\n\t\t\tfor (int i = 0; i < colmax; ++i) {\n\t\t\t\tif (scorefun [i] > smax) {\n\t\t\t\t\tsmax = scorefun [i];\n\t\t\t\t\tsmaxix = i;\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// dobeat array records where we actally place beats\n\t\t\tdobeat [now] = 0;  // default is no beat this frame\n\t\t\t++sinceLast;\n\t\t\t// if current value is largest in the array, probably means we're on a beat\n\t\t\tif (smaxix == now) {\n\t\t\t\t//tapTempo();\n\t\t\t\t// make sure the most recent beat wasn't too recently\n\t\t\t\tif (sinceLast > tempopd / 4) {\n\t\t\t\t\tonBeat.Invoke ();\t\t\t\n\t\t\t\t\tblipDelay [0] = 1;\n\t\t\t\t\t// record that we did actually mark a beat this frame\n\t\t\t\t\tdobeat [now] = 1;\n\t\t\t\t\t// reset counter of frames since last beat\n\t\t\t\t\tsinceLast = 0;\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t/* update column index (for ring buffer) */\n\t\t\tif (++now == colmax)\n\t\t\t\tnow = 0;\n\n\t\t\t//Debug.Log(System.Math.Round(60 / (tempopd * framePeriod)) + \" bpm\");\n\t\t\t//Debug.Log(System.Math.Round(auco.avgBpm()) + \" bpm\");\n\t\t}\n\t}\n\n\tpublic void changeCameraColor ()\n\t{\n\t\t//Debug.Log(\"camera\");\n\t\tfloat r = Random.Range (0f, 1f);\n\t\tfloat g = Random.Range (0f, 1f);\n\t\tfloat b = Random.Range (0f, 1f);\n\n\t\t//Debug.Log(r + \",\" + g + \",\" + b);\n\t\tColor color = new Color (r, g, b);\n\n\t\tGetComponent<Camera> ().clearFlags = CameraClearFlags.Color;\n\t\tCamera.main.backgroundColor = color;\n\n\t\t//camera.backgroundColor = color;\n\t}\n\n\tpublic float getBandWidth ()\n\t{\n\t\treturn (2f / (float)bufferSize) * (samplingRate / 2f);\n\t}\n\n\tpublic int freqToIndex (int freq)\n\t{\n\t\t// special case: freq is lower than the bandwidth of spectrum[0]\n\t\tif (freq < getBandWidth () / 2)\n\t\t\treturn 0;\n\t\t// special case: freq is within the bandwidth of spectrum[512]\n\t\tif (freq > samplingRate / 2 - getBandWidth () / 2)\n\t\t\treturn (bufferSize / 2);\n\t\t// all other cases\n\t\tfloat fraction = (float)freq / (float)samplingRate;\n\t\tint i = (int)System.Math.Round (bufferSize * fraction);\n\t\t//Debug.Log(\"frequency: \" + freq + \", index: \" + i);\n\t\treturn i;\n\t}\n\n\tpublic void computeAverages (float[] data)\n\t{\n\t\tfor (int i = 0; i < 12; i++) {\n\t\t\tfloat avg = 0;\n\t\t\tint lowFreq;\n\t\t\tif (i == 0)\n\t\t\t\tlowFreq = 0;\n\t\t\telse\n\t\t\t\tlowFreq = (int)((samplingRate / 2) / (float)System.Math.Pow (2, 12 - i));\n\t\t\tint hiFreq = (int)((samplingRate / 2) / (float)System.Math.Pow (2, 11 - i));\n\t\t\tint lowBound = freqToIndex (lowFreq);\n\t\t\tint hiBound = freqToIndex (hiFreq);\n\t\t\tfor (int j = lowBound; j <= hiBound; j++) {\n\t\t\t\t//Debug.Log(\"lowbound: \" + lowBound + \", highbound: \" + hiBound);\n\t\t\t\tavg += data [j];\n\t\t\t}\n\t\t\t// line has been changed since discussion in the comments\n\t\t\t// avg /= (hiBound - lowBound);\n\t\t\tavg /= (hiBound - lowBound + 1);\n\t\t\taverages [i] = avg;\n\t\t}\n\t}\n\n\tfloat map (float s, float a1, float a2, float b1, float b2)\n\t{\n\t\treturn b1 + (s - a1) * (b2 - b1) / (a2 - a1);\n\t}\n\n\tpublic float constrain (float value, float inclusiveMinimum, float inlusiveMaximum)\n\t{\n\t\tif (value >= inclusiveMinimum) {\n\t\t\tif (value <= inlusiveMaximum) {\n\t\t\t\treturn value;\n\t\t\t}\n\n\t\t\treturn inlusiveMaximum;\n\t\t}\n\n\t\treturn inclusiveMinimum;\n\t}\n\n\t[System.Serializable]\n\tpublic class OnBeatEventHandler : UnityEngine.Events.UnityEvent\n\t{\n\n\t}\n\n\t[System.Serializable]\n\tpublic class OnSpectrumEventHandler : UnityEngine.Events.UnityEvent<float []>\n\t{\n\n\t}\n\n\t// class to compute an array of online autocorrelators\n\tprivate class Autoco\n\t{\n\t\tprivate int del_length;\n\t\tprivate float decay;\n\t\tprivate float[] delays;\n\t\tprivate float[] outputs;\n\t\tprivate int indx;\n\n\t\tprivate float[] bpms;\n\t\tprivate float[] rweight;\n\t\tprivate float wmidbpm = 120f;\n\t\tprivate float woctavewidth;\n\n\t\tpublic Autoco (int len, float alpha, float framePeriod, float bandwidth)\n\t\t{\n\t\t\twoctavewidth = bandwidth;\n\t\t\tdecay = alpha;\n\t\t\tdel_length = len;\n\t\t\tdelays = new float[del_length];\n\t\t\toutputs = new float[del_length];\n\t\t\tindx = 0;\n\n\t\t\t// calculate a log-lag gaussian weighting function, to prefer tempi around 120 bpm\n\t\t\tbpms = new float[del_length];\n\t\t\trweight = new float[del_length];\n\t\t\tfor (int i = 0; i < del_length; ++i) {\n\t\t\t\tbpms [i] = 60.0f / (framePeriod * (float)i);\n\t\t\t\t//Debug.Log(bpms[i]);\n\t\t\t\t// weighting is Gaussian on log-BPM axis, centered at wmidbpm, SD = woctavewidth octaves\n\t\t\t\trweight [i] = (float)System.Math.Exp (-0.5f * System.Math.Pow (System.Math.Log (bpms [i] / wmidbpm) / System.Math.Log (2.0f) / woctavewidth, 2.0f));\n\t\t\t}\n\t\t}\n\n\t\tpublic void newVal (float val)\n\t\t{\n\n\t\t\tdelays [indx] = val;\n\n\t\t\t// update running autocorrelator values\n\t\t\tfor (int i = 0; i < del_length; ++i) {\n\t\t\t\tint delix = (indx - i + del_length) % del_length;\n\t\t\t\toutputs [i] += (1 - decay) * (delays [indx] * delays [delix] - outputs [i]);\n\t\t\t}\n\n\t\t\tif (++indx == del_length)\n\t\t\t\tindx = 0;\n\t\t}\n\n\t\t// read back the current autocorrelator value at a particular lag\n\t\tpublic float autoco (int del)\n\t\t{\n\t\t\tfloat blah = rweight [del] * outputs [del];\n\t\t\treturn blah;\n\t\t}\n\n\t\tpublic float avgBpm ()\n\t\t{\n\t\t\tfloat sum = 0;\n\t\t\tfor (int i = 0; i < bpms.Length; ++i) {\n\t\t\t\tsum += bpms [i];\n\t\t\t}\n\t\t\treturn sum / del_length;\n\t\t}\n\t}\n\n\t\n}\n\n\n",
+			"file": "Assets/Scripts/AudioProcessor.cs",
+			"file_size": 10539,
+			"file_write_time": 131379632890000000,
+			"settings":
+			{
+				"buffer_size": 10539,
+				"encoding": "UTF-8 with BOM",
+				"line_ending": "Unix"
 			}
 		}
 	],
@@ -90,15 +164,15 @@
 	},
 	"expanded_folders":
 	[
-		"/Users/tarrouye/Github/SoundRider/SoundRider/Assets"
+		"/Users/tarrouye/Github/SoundRider/SoundRider/Assets",
+		"/Users/tarrouye/Github/SoundRider/SoundRider/Assets/Plugins",
+		"/Users/tarrouye/Github/SoundRider/SoundRider/Assets/Plugins/FarlandSkies",
+		"/Users/tarrouye/Github/SoundRider/SoundRider/Assets/Plugins/FarlandSkies/Demo",
+		"/Users/tarrouye/Github/SoundRider/SoundRider/Assets/Plugins/FarlandSkies/Demo/Scripts",
+		"/Users/tarrouye/Github/SoundRider/SoundRider/Assets/Plugins/FarlandSkies/Demo/Scripts/Skybox"
 	],
 	"file_history":
 	[
-		"/Users/tarrouye/Github/SoundRider/SoundRider/Assets/Scripts/AudioProcessor.cs",
-		"/Users/tarrouye/Github/SoundRider/SoundRider/Assets/Scripts/Rotate.cs",
-		"/Users/tarrouye/Github/SoundRider/SoundRider/Assets/Scripts/PlatformCreator.cs",
-		"/Users/tarrouye/Github/SoundRider/SoundRider/Assets/Scripts/Example.cs",
-		"/Users/tarrouye/Github/SoundRider/SoundRider/Assets/Scripts/PlayerController.cs",
 		"/Users/tarrouye/Github/SoundRider/SoundRider/soundrider.sublime-project",
 		"/Users/tarrouye/Github/SoundRider/SoundRider/Assets/Scripts/AudioProcessor.cs.meta",
 		"/Users/tarrouye/Github/bose-prototype-unity/boseARprototype/Assets/_Core/Script/SceneLoader.cs",
@@ -197,6 +271,7 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"highscore",
 			"generatePlatform"
 		],
 		"highlight": true,
@@ -215,24 +290,119 @@
 	"groups":
 	[
 		{
-			"selected": 0,
+			"selected": 1,
 			"sheets":
 			[
 				{
 					"buffer": 0,
-					"file": "Assets/Plugins/FarlandSkies/Demo/Scripts/Skybox/SkyboxRotator.cs",
+					"file": "Assets/Scripts/Example.cs",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 350,
+						"buffer_size": 1499,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								0,
-								0
+								1496,
+								1496
+							]
+						],
+						"settings":
+						{
+							"incomplete_sync": null,
+							"remote_loading": false,
+							"synced": false,
+							"syntax": "Packages/C#/C#.sublime-syntax",
+							"translate_tabs_to_spaces": false
+						},
+						"translation.x": 0.0,
+						"translation.y": 106.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 7,
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "Assets/_Core/Scripts/PlatformCreator.cs",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 5319,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								2156,
+								2042
+							]
+						],
+						"settings":
+						{
+							"incomplete_sync": null,
+							"remote_loading": false,
+							"synced": false,
+							"syntax": "Packages/C#/C#.sublime-syntax",
+							"translate_tabs_to_spaces": false
+						},
+						"translation.x": 0.0,
+						"translation.y": 1538.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 0,
+					"type": "text"
+				},
+				{
+					"buffer": 2,
+					"file": "Assets/_Core/Scripts/PlayerController.cs",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 2535,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								1577,
+								1577
+							]
+						],
+						"settings":
+						{
+							"incomplete_sync": null,
+							"remote_loading": false,
+							"synced": false,
+							"syntax": "Packages/C#/C#.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 141.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 1,
+					"type": "text"
+				},
+				{
+					"buffer": 3,
+					"file": "Assets/_Core/Scripts/Tween.cs",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 1114,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								845,
+								845
 							]
 						],
 						"settings":
@@ -244,7 +414,134 @@
 						"translation.y": 0.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 0,
+					"stack_index": 3,
+					"type": "text"
+				},
+				{
+					"buffer": 4,
+					"file": "Assets/_Core/Scripts/SkyboxHandler.cs",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 653,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								169,
+								169
+							]
+						],
+						"settings":
+						{
+							"incomplete_sync": null,
+							"syntax": "Packages/C#/C#.sublime-syntax",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 4,
+					"type": "text"
+				},
+				{
+					"buffer": 5,
+					"file": "Assets/Plugins/FarlandSkies/Demo/Scripts/Skybox/SkyboxRotator.cs",
+					"semi_transient": true,
+					"settings":
+					{
+						"buffer_size": 350,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								69,
+								348
+							]
+						],
+						"settings":
+						{
+							"incomplete_sync": null,
+							"remote_loading": false,
+							"synced": false,
+							"syntax": "Packages/C#/C#.sublime-syntax",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 5,
+					"type": "text"
+				},
+				{
+					"buffer": 6,
+					"file": "Assets/Scripts/Rotate.cs",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 274,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								244,
+								244
+							]
+						],
+						"settings":
+						{
+							"incomplete_sync": null,
+							"remote_loading": false,
+							"synced": false,
+							"syntax": "Packages/C#/C#.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 6,
+					"type": "text"
+				},
+				{
+					"buffer": 7,
+					"file": "Assets/Scripts/AudioProcessor.cs",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 10539,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								2789,
+								2789
+							]
+						],
+						"settings":
+						{
+							"incomplete_sync": null,
+							"remote_loading": false,
+							"synced": false,
+							"syntax": "Packages/C#/C#.sublime-syntax",
+							"translate_tabs_to_spaces": false
+						},
+						"translation.x": 0.0,
+						"translation.y": 1214.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 2,
 					"type": "text"
 				}
 			]

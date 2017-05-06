@@ -9,6 +9,8 @@ public class PlatformCreator : MonoBehaviour {
 	private static int LENIENT = 3;
 	private static int SIDEWAYS = 4;
 
+	private int stacks = 3;
+
 	[SerializeField] int MODE = NORM;
 
 	[SerializeField] bool BUILD_CLEANLY = false;
@@ -16,6 +18,8 @@ public class PlatformCreator : MonoBehaviour {
 	[SerializeField] float camera_speed = 20f;
 
 	[SerializeField] float cube_thickness = 0.5f;
+
+	[SerializeField] float leniency_threshold = 0.75f;
 
 	private Color[] colors = new Color[12];
 
@@ -33,6 +37,8 @@ public class PlatformCreator : MonoBehaviour {
 
 	[SerializeField] PlayerController player;
 
+	[SerializeField] TextMesh songName;
+
 	// Use this for initialization
 	void Start() {
 		for (int i = 0; i < colors.Length; i++) {
@@ -40,18 +46,18 @@ public class PlatformCreator : MonoBehaviour {
 			colors[i] = new Color(c, c, c);
 		}
 
-		colors[0] = (Color) new Color32(207,240,158,255);
-		colors[1] = (Color) new Color32(168,219,168,255);
-		colors[2] = (Color) new Color32(121,189,154,255);
-		colors[3] = (Color) new Color32(59,134,134,255);
-		colors[4] = (Color) new Color32(11,72,107,255);
-		colors[5] = (Color) new Color32(196,77,88,255);
-		colors[6] = (Color) new Color32(255,107,107,255);
-		colors[7] = (Color) new Color32(199,244,100,255);
-		colors[8] = (Color) new Color32(78,205,196,255);
-		colors[9] = (Color) new Color32(85,98,112,255);
-		colors[10] = (Color) new Color32(213,222,217,255);
-		colors[11] = (Color) new Color32(203,232,107,255);
+		colors[3] = (Color) new Color32(78,205,196,255);
+		colors[4] = (Color) new Color32(85,98,112,255);
+		colors[5] = (Color) new Color32(213,222,217,255);
+		colors[0] = (Color) new Color32(203,232,107,255);
+		colors[1] = (Color) new Color32(207,240,158,255);
+		colors[2] = (Color) new Color32(168,219,168,255);
+		colors[6] = (Color) new Color32(121,189,154,255);
+		colors[7] = (Color) new Color32(59,134,134,255);
+		colors[8] = (Color) new Color32(11,72,107,255);
+		colors[9] = (Color) new Color32(196,77,88,255);
+		colors[10] = (Color) new Color32(255,107,107,255);
+		colors[11] = (Color) new Color32(199,244,100,255);
 
 		AudioProcessor processor = FindObjectOfType<AudioProcessor> ();
 		processor.onSpectrum.AddListener (onSpectrum);
@@ -60,6 +66,12 @@ public class PlatformCreator : MonoBehaviour {
 		NewCoinStreak();
 
 		player.setRunSpeed(camera_speed);
+
+		songName.text = "Level: " + currentSongName();
+	}
+
+	string currentSongName() {
+		return ((AudioSource) GameObject.FindObjectOfType(typeof(AudioSource))).clip.name;
 	}
 	
 	// Update is called once per frame
@@ -70,12 +82,15 @@ public class PlatformCreator : MonoBehaviour {
 	void NewCoinStreak()
 	{
 		coin_streak_left = min_coin_streak + (int) (Random.value * (max_coin_streak - min_coin_streak));
-		coin_streak_i = (int) (Random.value * 12);
+		int old = coin_streak_i;
+		while (old == coin_streak_i) {
+			coin_streak_i = (int) (Random.value * 3.99);
+		}
 	}
 
-	void generatePlatform(float x, Color col, bool coin, float width = 1.0f, float height = 1.0f) {
+	void generatePlatform(float x, int stack, Color col, bool coin, float width = 1.0f, float height = 1.0f) {
  		GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
- 		float z = nextGeneration;
+ 		float z = nextGeneration + (cube_thickness * stack);
  		if (!BUILD_CLEANLY) {
  			z = transform.position.z;
  		}
@@ -83,10 +98,12 @@ public class PlatformCreator : MonoBehaviour {
  		cube.transform.localScale = new Vector3 (width, height, cube_thickness);
  		cube.GetComponent<Renderer>().material.color = col;
  		
- 		if (coin) {
+ 		if (coin == true && coin_streak_left > 0) {
  			GameObject new_coin = Instantiate(coin_prefab, cube.transform);
  			new_coin.transform.localScale *= 0.5f;
  			new_coin.transform.localPosition = new Vector3(0f, 0.5f + new_coin.transform.localScale.z, 0f);
+
+ 			coin_streak_left -= 1;
  		}
  	}
 
@@ -97,20 +114,24 @@ public class PlatformCreator : MonoBehaviour {
  		}
  		if (!BUILD_CLEANLY || transform.position.z > nextGeneration) {
  			for (int j = 0; j < n; j++) {
-		 		for (int i = 0; i < spectrum.Length; ++i) {
+		 		for (int i = 0; i < spectrum.Length; i++) {
+		 			int l = (int) (i / stacks);
+		 			int k = (int) (i % stacks);
+		 			int h = (int) (spectrum.Length / stacks) / 2;
 					if (compareSpectrum(spectrum[i], i)) {
-						generatePlatform(i - 5.5f, colors[i], (i == coin_streak_i));
+						generatePlatform(l - 1.5f, k, colors[l], (l == coin_streak_i));
+					} else if (l == coin_streak_i) {
+						NewCoinStreak(); // this one is empty but should have a coin, so move the streak
 					}
-					float nx = -8.5f - i * 0.25f;
-					if (i >= spectrum.Length / 2) {
-						nx = 8.5f + (i - (spectrum.Length / 2)) * 0.25f;
+					float nx = -5.5f - l * 0.25f;
+					if (l >= h) {
+						nx = 5.5f + (l - h) * 0.25f;
 					}
-					generatePlatform(nx, colors[colors.Length - 1 - i], false, 0.25f, (spectrum[i] / spectrum_highs[i]) * 12.5f);
+					generatePlatform(nx, k, colors[colors.Length - 1 - i], false, 0.25f, spectrum[i] * 1250f);
 				}
 
-				nextGeneration += cube_thickness;
+				nextGeneration += (cube_thickness * stacks);
 
-				coin_streak_left -= 1;
 				if (coin_streak_left < 1) {
 					NewCoinStreak();
 				}
@@ -141,9 +162,9 @@ public class PlatformCreator : MonoBehaviour {
 		if (MODE == TOPONLY) {
 			return ((check - spectrum_averages[i]) >= (spectrum_highs[i] - check));
 		} else if (MODE == LENIENT) {
-			return ((check / spectrum_averages[i]) >= 0.75f);
+			return ((check / spectrum_averages[i]) >= leniency_threshold);
 		} else if (MODE == SIDEWAYS) {
-			return ((check / spectrum_averages[1]) >= 0.75f);
+			return ((check / spectrum_averages[1]) >= leniency_threshold);
 		}
 
 		return (check >= spectrum_averages[i]);
