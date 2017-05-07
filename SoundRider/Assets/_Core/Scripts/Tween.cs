@@ -42,9 +42,13 @@ public class Tween {
 		total_time = d;
 	}
 
-	public float getValue() {
+	public float getValue(bool end = false) {
 		if (start_time == null) {
 			return start_value;
+		}
+
+		if (end) {
+			finish();
 		}
 
 		return Mathf.Lerp(start_value, finish_value, Mathf.Min(elapsedTime() / total_time, 1f));

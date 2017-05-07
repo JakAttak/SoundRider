@@ -15,11 +15,7 @@ public class PlatformCreator : MonoBehaviour {
 
 	[SerializeField] bool BUILD_CLEANLY = false;
 
-	[SerializeField] float camera_speed = 20f;
-
 	[SerializeField] float cube_thickness = 0.5f;
-
-	[SerializeField] float leniency_threshold = 0.75f;
 
 	private Color[] colors = new Color[12];
 
@@ -35,12 +31,12 @@ public class PlatformCreator : MonoBehaviour {
 	private int coin_streak_i;
 	[SerializeField] GameObject coin_prefab;
 
-	[SerializeField] PlayerController player;
-
-	[SerializeField] TextMesh songName;
+	private GameManager game;
 
 	// Use this for initialization
 	void Start() {
+		game = GameManager.getActive();
+
 		for (int i = 0; i < colors.Length; i++) {
 			float c = (1.0f / 12.0f) * i;
 			colors[i] = new Color(c, c, c);
@@ -62,21 +58,13 @@ public class PlatformCreator : MonoBehaviour {
 		AudioProcessor processor = FindObjectOfType<AudioProcessor> ();
 		processor.onSpectrum.AddListener (onSpectrum);
 
-		nextGeneration = player.getZPosition();
+		nextGeneration = game.getPlayerZ();
 		NewCoinStreak();
-
-		player.setRunSpeed(camera_speed);
-
-		songName.text = "Level: " + currentSongName();
-	}
-
-	string currentSongName() {
-		return ((AudioSource) GameObject.FindObjectOfType(typeof(AudioSource))).clip.name;
 	}
 	
 	// Update is called once per frame
 	void Update() {
-		transform.position = transform.position + new Vector3(0, 0, camera_speed * Time.deltaTime);
+		transform.position = transform.position + new Vector3(0, 0, game.getSpeed() * Time.deltaTime);
 	}
 
 	void NewCoinStreak()
@@ -162,9 +150,9 @@ public class PlatformCreator : MonoBehaviour {
 		if (MODE == TOPONLY) {
 			return ((check - spectrum_averages[i]) >= (spectrum_highs[i] - check));
 		} else if (MODE == LENIENT) {
-			return ((check / spectrum_averages[i]) >= leniency_threshold);
+			return ((check / spectrum_averages[i]) >= game.getDifficulty());
 		} else if (MODE == SIDEWAYS) {
-			return ((check / spectrum_averages[1]) >= leniency_threshold);
+			return ((check / spectrum_averages[1]) >= game.getDifficulty());
 		}
 
 		return (check >= spectrum_averages[i]);
