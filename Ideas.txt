@@ -1,0 +1,7 @@
+Ideas:
+
+- Name: HopHop (play on hip hop and hopping)
+
+- Integrate YouTube for picking songs
+
+- Mobile compabitility
